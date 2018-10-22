@@ -59,6 +59,8 @@ using ConstructorActionList = stdx::list<ServiceContext::ConstructorDestructorAc
 
 ServiceContext* globalServiceContext = nullptr;
 
+AtomicWord<int> _numCurrentOps{0};
+
 }  // namespace
 
 bool hasGlobalServiceContext() {
@@ -232,7 +234,12 @@ void ServiceContext::ClientDeleter::operator()(Client* client) const {
 
 ServiceContext::UniqueOperationContext ServiceContext::makeOperationContext(Client* client) {
     auto opCtx = std::make_unique<OperationContext>(client, _nextOpId.fetchAndAdd(1));
+    if (client && client->session()) {
+        _numCurrentOps.addAndFetch(1);
+    }
+
     onCreate(opCtx.get(), _clientObservers);
+
     if (!opCtx->lockState()) {
         opCtx->setLockState(std::make_unique<LockerNoop>());
     }
@@ -249,6 +256,9 @@ ServiceContext::UniqueOperationContext ServiceContext::makeOperationContext(Clie
 
 void ServiceContext::OperationContextDeleter::operator()(OperationContext* opCtx) const {
     auto client = opCtx->getClient();
+    if (client && client->session()) {
+        _numCurrentOps.subtractAndFetch(1);
+    }
     auto service = client->getServiceContext();
     {
         stdx::lock_guard<Client> lk(*client);
@@ -398,6 +408,10 @@ ServiceContext::UniqueServiceContext ServiceContext::make() {
 void ServiceContext::ServiceContextDeleter::operator()(ServiceContext* service) const {
     onDestroy(service, registeredConstructorActions());
     delete service;
+}
+
+void appendNumCurrentOpStats(BSONObjBuilder* bob) {
+    *bob << "activeOps" << _numCurrentOps.load();
 }
 
 }  // namespace mongo

@@ -33,9 +33,12 @@
 #include <boost/preprocessor/stringize.hpp>
 
 #include "mongo/base/disallow_copying.h"
+#include "mongo/base/string_data.h"
+#include "mongo/bson/bsonobjbuilder.h"
 
 namespace mongo {
 
+constexpr auto kIdleThreads = "numIdleThreads"_sd;
 /**
  * Marks a thread as idle while in scope. Prefer to use the macro below.
  *
@@ -60,6 +63,9 @@ public:
     static void beginIdleThreadBlock(const char* location);
     static void endIdleThreadBlock();
 };
+
+void appendIdleThreadStats(BSONObjBuilder* bob);
+
 
 /**
  * Marks a thread idle for the rest of the current scope and passes file:line as the location.

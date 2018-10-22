@@ -618,4 +618,6 @@ void setGlobalServiceContext(ServiceContext::UniqueServiceContext&& serviceConte
  */
 bool supportsDocLocking();
 
+void appendNumCurrentOpStats(BSONObjBuilder* bob);
+
 }  // namespace mongo

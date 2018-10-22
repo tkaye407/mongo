@@ -28,6 +28,8 @@
  *    it in the license file.
  */
 
+#include "mongo/db/client.h"
+#include "mongo/db/service_context.h"
 #include "mongo/platform/basic.h"
 
 #include "mongo/util/assert_util.h"
@@ -39,14 +41,25 @@ namespace for_debuggers {
 thread_local const char* idleThreadLocation = nullptr;
 }
 using for_debuggers::idleThreadLocation;
+AtomicWord<int> _idleThreads{0};
 
 void IdleThreadBlock::beginIdleThreadBlock(const char* location) {
     invariant(!idleThreadLocation);
+    if (Client::getCurrent() && Client::getCurrent()->session()) {
+        _idleThreads.addAndFetch(1);
+    }
     idleThreadLocation = location;
 }
 
 void IdleThreadBlock::endIdleThreadBlock() {
     invariant(idleThreadLocation);
+    if (Client::getCurrent() && Client::getCurrent()->session()) {
+        _idleThreads.subtractAndFetch(1);
+    }
     idleThreadLocation = nullptr;
+}
+
+void appendIdleThreadStats(BSONObjBuilder* bob) {
+    *bob << kIdleThreads << _idleThreads.load();
 }
 }
