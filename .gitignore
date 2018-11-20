@@ -84,6 +84,7 @@ scratch
 /mongoshim
 /mongosniff
 /wt
+/mongotrafficreader
 
 *.tgz
 *.zip
