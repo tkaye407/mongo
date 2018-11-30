@@ -141,7 +141,7 @@ struct linenoiseCompletions {
     vector<Utf32String> completionStrings;
 };
 
-#define LINENOISE_DEFAULT_HISTORY_MAX_LEN 1000
+#define LINENOISE_DEFAULT_HISTORY_MAX_LEN 20
 #define LINENOISE_MAX_LINE 4096
 
 // make control-characters more readable
@@ -2775,22 +2775,27 @@ mongo::Status linenoiseFileError(mongo::ErrorCodes::Error code,
 
 /* Save the history in the specified file. */
 mongo::Status linenoiseHistorySave(const char* filename) {
+    std::string tmpFileName(filename);
+    tmpFileName.append(".tmp");
+
     FILE* fp;
 #if _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE || defined(__APPLE__)
-    int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
+    int fd = open(tmpFileName.c_str(), O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
     if (fd == -1) {
-        return linenoiseFileError(mongo::ErrorCodes::FileOpenFailed, "open()", filename);
+        return linenoiseFileError(mongo::ErrorCodes::FileOpenFailed, "open()", tmpFileName.c_str());
     }
     fp = fdopen(fd, "wt");
     if (fp == NULL) {
         // We've already failed, so no need to report any close() failure.
         (void)close(fd);
-        return linenoiseFileError(mongo::ErrorCodes::FileOpenFailed, "fdopen()", filename);
+        return linenoiseFileError(
+            mongo::ErrorCodes::FileOpenFailed, "fdopen()", tmpFileName.c_str());
     }
 #else
-    fp = fopen(filename, "wt");
+    fp = fopen(tmpFileName.c_str(), "wt");
     if (fp == NULL) {
-        return linenoiseFileError(mongo::ErrorCodes::FileOpenFailed, "fopen()", filename);
+        return linenoiseFileError(
+            mongo::ErrorCodes::FileOpenFailed, "fopen()", tmpFileName.c_str());
     }
 #endif  // _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE || defined(__APPLE__)
 
@@ -2800,19 +2805,22 @@ mongo::Status linenoiseHistorySave(const char* filename) {
                 // We've already failed, so no need to report any fclose() failure.
                 (void)fclose(fp);
                 return linenoiseFileError(
-                    mongo::ErrorCodes::FileStreamFailed, "fprintf() to", filename);
+                    mongo::ErrorCodes::FileStreamFailed, "fprintf() to", tmpFileName.c_str());
             }
         }
     }
     // Closing fp also causes fd to be closed.
     if (fclose(fp) != 0) {
-        return linenoiseFileError(mongo::ErrorCodes::FileStreamFailed, "fclose()", filename);
+        return linenoiseFileError(
+            mongo::ErrorCodes::FileStreamFailed, "fclose()", tmpFileName.c_str());
     }
+
+    rename(tmpFileName.c_str(), filename);
     return mongo::Status::OK();
 }
 
-/* Load the history from the specified file. */
-mongo::Status linenoiseHistoryLoad(const char* filename) {
+/* Load the history from the specified file but ignore newCommand if present*/
+mongo::Status linenoiseHistoryLoadIgnoreNewCommand(const char* filename, const char* newCommand) {
     FILE* fp = fopen(filename, "rt");
     if (fp == NULL) {
         if (errno == ENOENT) {
@@ -2833,9 +2841,12 @@ mongo::Status linenoiseHistoryLoad(const char* filename) {
             *p = '\0';
         }
         if (p != buf) {
-            linenoiseHistoryAdd(buf);
+            if (newCommand == NULL || strcmp(buf, newCommand) != 0) {
+                linenoiseHistoryAdd(buf);
+            }
         }
     }
+
     // fgets() returns NULL on error or EOF (with nothing read).
     // So if we aren't EOF, it must have been an error.
     if (!feof(fp)) {
@@ -2847,4 +2858,25 @@ mongo::Status linenoiseHistoryLoad(const char* filename) {
         return linenoiseFileError(mongo::ErrorCodes::FileStreamFailed, "fclose()", filename);
     }
     return mongo::Status::OK();
+}
+
+/* Load the history from the specified file. */
+mongo::Status linenoiseHistoryLoad(const char* filename) {
+    return linenoiseHistoryLoadIgnoreNewCommand(filename, NULL);
+}
+
+mongo::Status linenoiseHistoryAddNewCommand(const char* filename, const char* line) {
+    linenoiseHistoryFree();
+    mongo::Status res = linenoiseHistoryLoadIgnoreNewCommand(filename, line);
+    if (!res.isOK()) {
+        return linenoiseFileError(
+            mongo::ErrorCodes::FileStreamFailed, "history load failed: ", filename);
+    }
+
+    int result = linenoiseHistoryAdd(line);
+    if (result == 0) {
+        return linenoiseFileError(
+            mongo::ErrorCodes::FileStreamFailed, "adding line to history failed: ", filename);
+    }
+    return linenoiseHistorySave(filename);
 }

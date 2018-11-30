@@ -170,10 +170,6 @@ void shellHistoryInit() {
 }
 
 void shellHistoryDone() {
-    Status res = linenoiseHistorySave(historyFile.c_str());
-    if (!res.isOK()) {
-        error() << "Error saving history file: " << res;
-    }
     linenoiseHistoryFree();
 }
 void shellHistoryAdd(const char* line) {
@@ -197,7 +193,10 @@ void shellHistoryAdd(const char* line) {
     static pcrecpp::RE hiddenCommands(
         "(run|admin)Command\\s*\\(\\s*{\\s*(createUser|updateUser)\\s*:");
     if (!hiddenHelpers.PartialMatch(line) && !hiddenCommands.PartialMatch(line)) {
-        linenoiseHistoryAdd(line);
+        Status res = linenoiseHistoryAddNewCommand(historyFile.c_str(), line);
+        if (!res.isOK()) {
+            error() << "Error adding command to history: " << res;
+        }
     }
 }
 
@@ -1140,6 +1139,7 @@ int _main(int argc, char* argv[], char** envp) {
                 try {
                     lastLineSuccessful = scope->exec(code.c_str(), "(shell)", false, true, false);
                     if (lastLineSuccessful) {
+                        shellHistoryAdd(code.c_str());
                         scope->exec(
                             "shellPrintHelper( __lastres__ );", "(shell2)", true, true, false);
                     }
@@ -1149,7 +1149,6 @@ int _main(int argc, char* argv[], char** envp) {
                 }
             }
 
-            shellHistoryAdd(code.c_str());
             free(line);
         }
 

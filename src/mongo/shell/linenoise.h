@@ -47,6 +47,7 @@ void linenoiseAddCompletion(linenoiseCompletions* lc, const char* str);
 char* linenoise(const char* prompt);
 void linenoisePreloadBuffer(const char* preloadText);
 int linenoiseHistoryAdd(const char* line);
+mongo::Status linenoiseHistoryAddNewCommand(const char* filename, const char* line);
 int linenoiseHistorySetMaxLen(int len);
 mongo::Status linenoiseHistorySave(const char* filename);
 mongo::Status linenoiseHistoryLoad(const char* filename);
