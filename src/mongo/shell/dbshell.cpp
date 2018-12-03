@@ -170,6 +170,10 @@ void shellHistoryInit() {
 }
 
 void shellHistoryDone() {
+    Status res = linenoiseHistorySave(historyFile.c_str());
+    if (!res.isOK()) {
+        error() << "Error saving history file: " << res;
+    }
     linenoiseHistoryFree();
 }
 void shellHistoryAdd(const char* line) {
@@ -1148,7 +1152,7 @@ int _main(int argc, char* argv[], char** envp) {
                     lastLineSuccessful = false;
                 }
             }
-
+            // shellHistoryAdd(code.c_str());
             free(line);
         }
 

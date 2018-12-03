@@ -114,6 +114,7 @@
 #include "mk_wcwidth.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <iostream>
 #include <sstream>
 #include <stdio.h>
 #include <string>
@@ -2775,27 +2776,26 @@ mongo::Status linenoiseFileError(mongo::ErrorCodes::Error code,
 
 /* Save the history in the specified file. */
 mongo::Status linenoiseHistorySave(const char* filename) {
-    std::string tmpFileName(filename);
-    tmpFileName.append(".tmp");
+    std::cout << "***H***  saving history to: " << filename << std::endl;
+    std::string tmpFileName = std::string(filename) + std::string(".tmp");
+    const char* tmpfilecstr = tmpFileName.c_str();
 
     FILE* fp;
 #if _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE || defined(__APPLE__)
-    int fd = open(tmpFileName.c_str(), O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
+    int fd = open(tmpfilecstr, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
     if (fd == -1) {
-        return linenoiseFileError(mongo::ErrorCodes::FileOpenFailed, "open()", tmpFileName.c_str());
+        return linenoiseFileError(mongo::ErrorCodes::FileOpenFailed, "open()", tmpfilecstr);
     }
     fp = fdopen(fd, "wt");
     if (fp == NULL) {
         // We've already failed, so no need to report any close() failure.
         (void)close(fd);
-        return linenoiseFileError(
-            mongo::ErrorCodes::FileOpenFailed, "fdopen()", tmpFileName.c_str());
+        return linenoiseFileError(mongo::ErrorCodes::FileOpenFailed, "fdopen()", tmpfilecstr);
     }
 #else
-    fp = fopen(tmpFileName.c_str(), "wt");
+    fp = fopen(tmpfilecstr, "wt");
     if (fp == NULL) {
-        return linenoiseFileError(
-            mongo::ErrorCodes::FileOpenFailed, "fopen()", tmpFileName.c_str());
+        return linenoiseFileError(mongo::ErrorCodes::FileOpenFailed, "fopen()", tmpfilecstr);
     }
 #endif  // _POSIX_C_SOURCE >= 1 || _XOPEN_SOURCE || _POSIX_SOURCE || defined(__APPLE__)
 
@@ -2805,22 +2805,25 @@ mongo::Status linenoiseHistorySave(const char* filename) {
                 // We've already failed, so no need to report any fclose() failure.
                 (void)fclose(fp);
                 return linenoiseFileError(
-                    mongo::ErrorCodes::FileStreamFailed, "fprintf() to", tmpFileName.c_str());
+                    mongo::ErrorCodes::FileStreamFailed, "fprintf() to", tmpfilecstr);
             }
         }
     }
     // Closing fp also causes fd to be closed.
     if (fclose(fp) != 0) {
-        return linenoiseFileError(
-            mongo::ErrorCodes::FileStreamFailed, "fclose()", tmpFileName.c_str());
+        return linenoiseFileError(mongo::ErrorCodes::FileStreamFailed, "fclose()", tmpfilecstr);
     }
-
-    rename(tmpFileName.c_str(), filename);
+#ifdef _WIN32
+    MoveFileExA(tmpfilecstr, filename, MOVEFILE_REPLACE_EXISTING);
+#else
+    rename(tmpfilecstr, filename);
+#endif
     return mongo::Status::OK();
 }
 
 /* Load the history from the specified file but ignore newCommand if present*/
 mongo::Status linenoiseHistoryLoadIgnoreNewCommand(const char* filename, const char* newCommand) {
+    std::cout << "***H*** loading history from: " << filename << std::endl;
     FILE* fp = fopen(filename, "rt");
     if (fp == NULL) {
         if (errno == ENOENT) {
@@ -2866,6 +2869,7 @@ mongo::Status linenoiseHistoryLoad(const char* filename) {
 }
 
 mongo::Status linenoiseHistoryAddNewCommand(const char* filename, const char* line) {
+    std::cout << "***H*** adding new cokmmand: " << filename << std::endl;
     linenoiseHistoryFree();
     mongo::Status res = linenoiseHistoryLoadIgnoreNewCommand(filename, line);
     if (!res.isOK()) {
