@@ -1,7 +1,5 @@
 // tests for the traffic_recording commands.
 (function() {
-    var baseName = "jstests_traffic_recording";
-
     // Variables for this test
     const recordingDir = MongoRunner.toRealDir("$dataDir/traffic_recording/");
     const recordingFile = "recording.txt";
@@ -50,7 +48,7 @@
     var opTypes = {};
 
     // Pass filepath to traffic_reader helper method to get recorded info in BSON
-    var res = getRecordedDocumentsAsBSON(recordingFilePath);
+    var res = convertTrafficRecordingToBSON(recordingFilePath);
 
     // Iterate through the results and assert the above commands are properly recorded
     res.forEach((obj) => {

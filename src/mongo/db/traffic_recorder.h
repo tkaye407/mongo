@@ -30,10 +30,7 @@
 #pragma once
 
 #include <boost/optional.hpp>
-#include <memory>
-#include <string>
 
-#include "mongo/base/string_data.h"
 #include "mongo/db/service_context.h"
 #include "mongo/db/traffic_recorder_gen.h"
 #include "mongo/platform/atomic_word.h"

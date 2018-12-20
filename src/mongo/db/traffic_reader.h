@@ -43,15 +43,11 @@ struct TrafficReaderPacket {
     const uint64_t order;
     const MsgData::ConstView message;
 };
-}
-
-// Helper method to convert a packet to the BSONObj expected by mongoreplay
-//    withOpType adds the name of the op (insert, find, ...etc) for testing purposes
-BSONObj getBSONObjFromPacket(TrafficReaderPacket& packet, bool withOpType);
+}  // namespace
 
 // Method for testing, takes the recorded traffic and returns a BSONArray
-BSONArray mongoGetRecordedDocuments(const std::string& inputFile);
+BSONArray trafficRecordingFileToBSONArr(const std::string& inputFile);
 
 // This is the function that traffic_reader_main.cpp calls
-int mongoTrafficReaderMain(int inFile, std::ofstream& outFile);
+void trafficRecordingFileToMongoReplayFile(int inFile, std::ostream& outFile);
 }  // namespace mongo

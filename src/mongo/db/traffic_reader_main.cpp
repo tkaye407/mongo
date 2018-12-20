@@ -112,8 +112,6 @@ int main(int argc, char* argv[], char** envp) {
         if (vm.count("output")) {
             auto outputFile = vm["output"].as<std::string>();
 
-            outputFile = vm["output"].as<std::string>();
-
             // Open the connection to the output file
             outputStream.open(outputFile, std::ios::out | std::ios::trunc | std::ios::binary);
             if (!outputStream.is_open()) {
@@ -131,7 +129,7 @@ int main(int argc, char* argv[], char** envp) {
         return EXIT_FAILURE;
     }
 
-    int exitCode = mongo::mongoTrafficReaderMain(inputFd, outputStream);
+    mongo::trafficRecordingFileToMongoReplayFile(inputFd, outputStream);
 
-    return exitcode;
+    return 1;
 }

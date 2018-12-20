@@ -1063,11 +1063,11 @@ BSONObj StopMongoProgramByPid(const BSONObj& a, void* data) {
     return BSON("" << (double)code);
 }
 
-BSONObj GetRecordedDocumentsAsBSON(const BSONObj& a, void* data) {
+BSONObj ConvertTrafficRecordingToBSON(const BSONObj& a, void* data) {
     int nFields = a.nFields();
     uassert(ErrorCodes::FailedToParse, "wrong number of arguments", nFields == 1);
 
-    auto arr = mongoGetRecordedDocuments(a.firstElement().String());
+    auto arr = trafficRecordingFileToBSONArr(a.firstElement().String());
     return BSON("" << arr);
 }
 
@@ -1122,7 +1122,7 @@ void installShellUtilsLauncher(Scope& scope) {
     scope.injectNative("resetDbpath", ResetDbpath);
     scope.injectNative("pathExists", PathExists);
     scope.injectNative("copyDbpath", CopyDbpath);
-    scope.injectNative("getRecordedDocumentsAsBSON", GetRecordedDocumentsAsBSON);
+    scope.injectNative("convertTrafficRecordingToBSON", ConvertTrafficRecordingToBSON);
 }
 }  // namespace shell_utils
 }  // namespace mongo

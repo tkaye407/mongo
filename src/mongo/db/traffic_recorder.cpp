@@ -166,11 +166,11 @@ public:
 
             stdx::lock_guard<stdx::mutex> lk(_mutex);
 
-            // If we the result was otherwise okay, mark it as failed due to the queue blocking.  If
+            // If the result was otherwise okay, mark it as failed due to the queue blocking.  If
             // it failed for another reason, don't overwrite that.
             if (_result.isOK()) {
-                _result =
-                    Status(ErrorCodes::ProducerConsumerQueueWouldBlock, "queue would have blocked");
+                _result = Status(ErrorCodes::ProducerConsumerQueueWouldBlock,
+                                 "queue was blocked in traffic recorder");
             }
         } catch (const ExceptionFor<ErrorCodes::ProducerConsumerQueueEndClosed>&) {
         }
@@ -251,8 +251,8 @@ private:
 };
 
 namespace {
-const auto getTrafficRecorder = ServiceContext::declareDecoration<TrafficRecorder>();
-}
+static const auto getTrafficRecorder = ServiceContext::declareDecoration<TrafficRecorder>();
+}  // namespace
 
 TrafficRecorder& TrafficRecorder::get(ServiceContext* svc) {
     return getTrafficRecorder(svc);

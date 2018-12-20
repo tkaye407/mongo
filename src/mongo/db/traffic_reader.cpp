@@ -62,7 +62,7 @@ namespace {
 // and the UTC representation.
 const long long unixToInternal =
     static_cast<long long>(1969 * 365 + 1969 / 4 - 1969 / 100 + 1969 / 400) * 86400;
-}
+}  // namespace
 
 namespace mongo {
 
@@ -184,15 +184,8 @@ BSONObj getBSONObjFromPacket(TrafficReaderPacket& packet, bool withOpType) {
     return builder.obj();
 }
 
-BSONArray mongoGetRecordedDocuments(const std::string& inputFile) {
+BSONArray trafficRecordingFileToBSONArr(const std::string& inputFile) {
     BSONArrayBuilder builder{};
-
-    std::ifstream infile(inputFile.c_str());
-    if (!infile.good()) {
-        std::cout << "Error: Specified file does not exist (" << inputFile.c_str() << ")"
-                  << std::endl;
-        return builder.arr();
-    }
 
 // Open the connection to the input file
 #ifdef _WIN32
@@ -200,6 +193,12 @@ BSONArray mongoGetRecordedDocuments(const std::string& inputFile) {
 #else
     auto inputFd = open(inputFile.c_str(), O_RDONLY);
 #endif
+
+    if (inputFd < 0) {
+        std::cout << "Error: Specified file does not exist (" << inputFile.c_str() << ")"
+                  << std::endl;
+        return builder.arr();
+    }
 
     auto buf = SharedBuffer::allocate(1 << 26);
     try {
@@ -218,7 +217,7 @@ BSONArray mongoGetRecordedDocuments(const std::string& inputFile) {
     return builder.arr();
 }
 
-int mongoTrafficReaderMain(int inputFd, std::ofstream& outputStream) {
+void trafficRecordingFileToMongoReplayFile(int inputFd, std::ostream& outputStream) {
     // Document expected by mongoreplay
     BSONObjBuilder opts{};
     opts.append("playbackfileversion", 1);
@@ -239,7 +238,7 @@ int mongoTrafficReaderMain(int inputFd, std::ofstream& outputStream) {
     } catch (const Done&) {
     }
 
-    return 0;
+    return;
 }
 
 }  // namespace mongo
